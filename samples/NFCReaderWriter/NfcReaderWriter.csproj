@@ -95,8 +95,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CaCom\CaCom.csproj">
-      <Project>{d5e694c6-0cc6-43ed-8402-073a2192df99}</Project>
+    <ProjectReference Include="..\..\src\CaCom\CaCom.csproj">
+      <Project>{4ac7f251-3740-4bf0-84ce-bcfda3a03554}</Project>
       <Name>CaCom</Name>
     </ProjectReference>
   </ItemGroup>
