@@ -1,17 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 
 using CaCom;
 
@@ -32,13 +26,17 @@ namespace NFCReaderWriter
 
         List<Reader> readerList;
 
-        byte UserMemoryPageIndex = 4;
+        Config config;
+
+        const string configFileName = "./config.data";
 
         public MainWindow()
         {
             InitializeComponent();
 
             // Global.UseSyncContextPost = true;
+
+            DeserializeConfig();
 
             controller.OnConnected += (success, readers) =>
             {
@@ -203,6 +201,58 @@ namespace NFCReaderWriter
             controller.DisconnectService();
         }
 
+        private void SerializeConfig()
+        {
+            try
+            {
+                int userMemory = int.Parse(textUserMemory.Text);
+                int updateSize = int.Parse(textUpdateSize.Text);
+
+                if (userMemory < 0) throw new ArgumentException();
+                if (updateSize <= 0) throw new ArgumentException();
+
+                config.UserMemoryPage = userMemory;
+                config.UpdateMemorySize = updateSize;
+
+                using (FileStream fs = new FileStream(configFileName, FileMode.OpenOrCreate))
+                {
+                    BinaryFormatter bf = new BinaryFormatter();
+                    bf.Serialize(fs, config);
+                    fs.Close();
+                }
+            }
+            catch
+            {
+                textUserMemory.Text = config.UserMemoryPage.ToString();
+                textUpdateSize.Text = config.UpdateMemorySize.ToString();
+
+                Console.WriteLine("Can not serialize config data.");
+            }
+
+        }
+
+        private void DeserializeConfig()
+        {
+            try
+            {
+                using (FileStream fs = new FileStream(configFileName, FileMode.Open))
+                {
+                    BinaryFormatter f = new BinaryFormatter();
+                    config = (Config)f.Deserialize(fs);
+                    fs.Close();
+                }
+
+                textUserMemory.Text = config.UserMemoryPage.ToString();
+                textUpdateSize.Text = config.UpdateMemorySize.ToString();
+            }
+            catch
+            {
+                config = new Config();
+                SerializeConfig();
+            }
+
+        }
+
         void AddLog(string text)
         {
             textLog.Text += text;
@@ -217,6 +267,8 @@ namespace NFCReaderWriter
 
         private void OnWriteClick(object sender, RoutedEventArgs e)
         {
+            SerializeConfig();
+
             NdefMessage message = new NdefMessage();
 
             Payload payload;
@@ -233,7 +285,7 @@ namespace NFCReaderWriter
             message.AddRecord(new NdefRecord(payload));
 
 
-            controller.WriteNdefMessage(readerList[0], message);
+            controller.WriteNdefMessage(readerList[0], message, (byte)config.UserMemoryPage, (byte)config.UpdateMemorySize);
 
         }
 
@@ -241,7 +293,7 @@ namespace NFCReaderWriter
         {
 
             NdefMessage message = new NdefMessage();
-            controller.ReadNdefMessage(readerList[0], message);
+            controller.ReadNdefMessage(readerList[0], message, (byte)config.UserMemoryPage);
         }
 
         private void OnSendClick(object sender, RoutedEventArgs e)

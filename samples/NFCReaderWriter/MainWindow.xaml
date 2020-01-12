@@ -11,30 +11,29 @@
             <RowDefinition Height="282*"/>
             <RowDefinition Height="187*"/>
         </Grid.RowDefinitions>
-        <GroupBox Header="APDU" HorizontalAlignment="Left" Height="154" Margin="28,241,0,0" Grid.RowSpan="2" VerticalAlignment="Top" Width="425"/>
 
-        <GroupBox Header="NDef" HorizontalAlignment="Left" Height="168" Margin="28,68,0,0" VerticalAlignment="Top" Width="425">
-            <TabControl x:Name="tabNdefData" HorizontalAlignment="Left" Height="100" VerticalAlignment="Top" Width="415" Margin="0,2,-2,0">
-                <TabItem Header="Text">
-                    <Grid Background="#FFE5E5E5">
-                        <TextBox x:Name="textTextData" HorizontalAlignment="Left" Height="39" Margin="10,27,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="389"/>
-                        <Label Content="Text" HorizontalAlignment="Left" Margin="8,-1,0,0" VerticalAlignment="Top" Height="30"/>
-                    </Grid>
-                </TabItem>
-                <TabItem Header="URI">
-                    <Grid Background="#FFE5E5E5" Margin="0,0,0,-9">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="16*"/>
-                            <ColumnDefinition Width="393*"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox x:Name="comboUriData" HorizontalAlignment="Left" Margin="7,25,0,0" VerticalAlignment="Top" Width="91" Grid.ColumnSpan="2"/>
-                        <Label Content="Protocol" HorizontalAlignment="Left" Margin="3,-2,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
-                        <TextBox x:Name="textUriData" HorizontalAlignment="Left" Height="46" Margin="90,25,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="293" Grid.Column="1"/>
-                        <Label Content="Data" HorizontalAlignment="Left" Margin="86,-1,0,0" VerticalAlignment="Top" Grid.Column="1"/>
-                    </Grid>
-                </TabItem>
-            </TabControl>
-        </GroupBox>
+
+        <TabControl x:Name="tabNdefData" HorizontalAlignment="Left" Height="100" VerticalAlignment="Top" Width="415" Margin="31,122,0,0">
+            <TabItem Header="Text">
+                <Grid Background="#FFE5E5E5">
+                    <TextBox x:Name="textTextData" HorizontalAlignment="Left" Height="39" Margin="10,27,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="389"/>
+                    <Label Content="Text" HorizontalAlignment="Left" Margin="8,-1,0,0" VerticalAlignment="Top" Height="30"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="URI">
+                <Grid Background="#FFE5E5E5" Margin="0,0,0,-9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="16*"/>
+                        <ColumnDefinition Width="393*"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="comboUriData" HorizontalAlignment="Left" Margin="7,25,0,0" VerticalAlignment="Top" Width="91" Grid.ColumnSpan="2"/>
+                    <Label Content="Protocol" HorizontalAlignment="Left" Margin="3,-2,0,0" VerticalAlignment="Top" Grid.ColumnSpan="2"/>
+                    <TextBox x:Name="textUriData" HorizontalAlignment="Left" Height="46" Margin="90,25,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="293" Grid.Column="1"/>
+                    <Label Content="Data" HorizontalAlignment="Left" Margin="86,-1,0,0" VerticalAlignment="Top" Grid.Column="1"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
         <TextBox x:Name="textLog" HorizontalAlignment="Left" Height="424" Margin="467,35,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="374" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Grid.RowSpan="2"/>
         <Label Content="Log" HorizontalAlignment="Left" Margin="467,5,0,0" VerticalAlignment="Top"/>
         <Button x:Name="ButtonClear" Content="Clear" HorizontalAlignment="Left" Margin="766,8,0,0" VerticalAlignment="Top" Width="75" Click="OnClearClick"/>
@@ -42,12 +41,19 @@
         <Label Content="IDm" HorizontalAlignment="Left" Margin="39,10,0,0" VerticalAlignment="Top"/>
         <Label Content="Type" HorizontalAlignment="Left" Margin="242,5,0,0" VerticalAlignment="Top"/>
         <Label x:Name="labelType" Content="" HorizontalAlignment="Left" Height="27" Margin="242,36,0,0" VerticalAlignment="Top" Width="201" Background="#FFDDDDDD"/>
-        <Button x:Name="buttonWrite" Content="Write" HorizontalAlignment="Left" Margin="368,206,0,0" VerticalAlignment="Top" Width="75" Click="OnWriteClick" IsEnabled="False"/>
-        <Button x:Name="buttonRead" Content="Read" HorizontalAlignment="Left" Height="20" Margin="214,206,0,0" VerticalAlignment="Top" Width="78" Click="OnReadClick" IsEnabled="False"/>
-        <TextBox x:Name="textAPDU" HorizontalAlignment="Left" Height="68" Margin="39,7,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="404" Grid.Row="1"/>
-        <Button x:Name="buttonSend" Content="Send" HorizontalAlignment="Left" Margin="368,84,0,0" VerticalAlignment="Top" Width="75" Click="OnSendClick" IsEnabled="False" Grid.Row="1"/>
-        <Label Content="Binary (ex.ff-b0-00-00-00)" HorizontalAlignment="Left" Margin="39,262,0,0" VerticalAlignment="Top" Grid.RowSpan="2"/>
-        <CheckBox x:Name="checkResetAPDUC" Content="Reset Binary" HorizontalAlignment="Left" Margin="358,262,0,0" VerticalAlignment="Top" IsChecked="True"/>
+        <Button x:Name="buttonWrite" Content="Write" HorizontalAlignment="Left" Margin="368,235,0,0" VerticalAlignment="Top" Width="75" Click="OnWriteClick" IsEnabled="False"/>
+        <Button x:Name="buttonRead" Content="Read" HorizontalAlignment="Left" Height="20" Margin="214,235,0,0" VerticalAlignment="Top" Width="78" Click="OnReadClick" IsEnabled="False"/>
+
+        <TextBox x:Name="textAPDU" HorizontalAlignment="Left" Height="68" Margin="39,44,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="404" Grid.Row="1"/>
+        <Button x:Name="buttonSend" Content="Send" HorizontalAlignment="Left" Margin="368,121,0,0" VerticalAlignment="Top" Width="75" Click="OnSendClick" IsEnabled="False" Grid.Row="1"/>
+        <Label Content="Binary (ex.ff-b0-00-00-00)" HorizontalAlignment="Left" Margin="39,17,0,0" VerticalAlignment="Top" Grid.Row="1"/>
+        <CheckBox x:Name="checkResetAPDUC" Content="Reset Binary" HorizontalAlignment="Left" Margin="358,17,0,0" VerticalAlignment="Top" IsChecked="True" Grid.Row="1"/>
+        <Label Content="NDef" HorizontalAlignment="Left" Margin="30,67,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.135,0.231"/>
+        <Label Content="APDU" HorizontalAlignment="Left" Margin="30,273,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.135,0.231" Grid.RowSpan="2"/>
+        <Label Content="UserMemoryAddress" HorizontalAlignment="Left" Margin="39,88,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="textUserMemory" HorizontalAlignment="Left" Height="23" Margin="165,91,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="52"/>
+        <Label Content="UpdateSize" HorizontalAlignment="Left" Margin="231,88,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="textUpdateSize" HorizontalAlignment="Left" Height="23" Margin="306,92,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="54"/>
 
     </Grid>
 </Window>

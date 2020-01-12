@@ -631,7 +631,7 @@ namespace CaCom
             await SendAPDUCommand(reader, command, OnAPDUCommand);
         }
 
-        public async Task WriteNdefMessage(Reader reader, NdefMessage message, byte userMemoryPage = 4)
+        public async Task WriteNdefMessage(Reader reader, NdefMessage message, byte userMemoryPage = 4, byte writeUnitSize = 4)
         {
             byte[] binary = message.ToBinaryData();
             int length = binary.Length;
@@ -642,14 +642,19 @@ namespace CaCom
 
             while (length > 0)
             {
-                byte[] com = { 0xff, 0xd6, 0x00, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
+                byte[] com = new byte[6 + writeUnitSize];
 
-                byte l = 4;
-                if (length < l) l = (byte)length;
-                Array.Copy(binary, currentIndex, com, 5, l);
+                com[0] = 0xff;
+                com[1] = 0xd6;
+                com[2] = 0x00;
 
                 com[3] = (byte)(userMemoryPage + numWrite);
-                com[4] = 4;
+                com[4] = writeUnitSize;
+
+                int l = writeUnitSize;
+
+                if (length < l) l = (byte)length;
+                Array.Copy(binary, currentIndex, com, 5, l);
 
                 command = new ApduCommand(com);
 
@@ -678,8 +683,8 @@ namespace CaCom
                 }
 
 
-                length -= 4;
-                currentIndex += 4;
+                length -= writeUnitSize;
+                currentIndex += writeUnitSize;
                 numWrite++;
             }
 
