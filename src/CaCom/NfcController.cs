@@ -160,8 +160,6 @@ namespace CaCom
 
             IntervalMilliSec = DefaultInterval;
 
-            if (Global.UseSyncContextPost && Global.SyncContext == null)
-                Global.SyncContext = SynchronizationContext.Current;
 
         }
 
@@ -169,6 +167,9 @@ namespace CaCom
 
         public async Task ConnectService(Scope scope = Scope.User)
         {
+            if (Global.UseSyncContextPost && Global.SyncContext == null)
+                Global.SyncContext = SynchronizationContext.Current;
+
             await Task.Run(() =>
             {
                 ErrorCode ret = (ErrorCode)SCardEstablishContext((uint)scope, IntPtr.Zero, IntPtr.Zero, out context);
