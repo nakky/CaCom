@@ -54,6 +54,13 @@ namespace CaCom
         Timeout = 0x8010000A
     };
 
+    public enum ExecStatus : uint
+    {
+        Success = 0,
+        Warning,
+        Error,
+    };
+
     public enum CardType : byte
     {
         Unknown = 0x00,

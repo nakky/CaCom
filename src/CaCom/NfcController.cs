@@ -25,6 +25,7 @@ namespace CaCom
 
         const int DefaultInterval = 100;
 
+        object pcscApiLock = new object();
 
         #region Eventhandler
 
@@ -41,7 +42,7 @@ namespace CaCom
         public delegate void LeaveCardHandler(Card card, Reader reader);
         public LeaveCardHandler OnLeaveCard { get; set; }
 
-        public delegate void APDUCommandHandler(bool success, Reader reader, ApduCommand command, byte[] receive);
+        public delegate void APDUCommandHandler(ExecStatus status, Reader reader, ApduCommand command, byte[] receive);
         public APDUCommandHandler OnAPDUCommand { get; set; }
 
         public delegate void ReadNdefMessageHandler(bool success, Reader reader, NdefMessage message);
@@ -172,7 +173,13 @@ namespace CaCom
 
             await Task.Run(() =>
             {
-                ErrorCode ret = (ErrorCode)SCardEstablishContext((uint)scope, IntPtr.Zero, IntPtr.Zero, out context);
+                ErrorCode ret;
+                
+                lock (pcscApiLock)
+                {
+                    ret = (ErrorCode)SCardEstablishContext((uint)scope, IntPtr.Zero, IntPtr.Zero, out context);
+                }
+               
                 if (ret != ErrorCode.NoError)
                 {
                     throw new NotSupportedException("No Service:" + ret);
@@ -182,6 +189,10 @@ namespace CaCom
             if (context != IntPtr.Zero)
             {
                 readers = GetReaders();
+
+                IsConnected = true;
+
+                InitReaderState(readers);
 
                 if (Global.SyncContext != null)
                 {
@@ -194,10 +205,6 @@ namespace CaCom
                 {
                     if (OnConnected != null) OnConnected(true, readers);
                 }
-
-                IsConnected = true;
-
-                InitReaderState(readers);
 
                 while (IsConnected)
                 {
@@ -253,7 +260,10 @@ namespace CaCom
             {
                 await Task.Run(() =>
                 {
-                    SCardReleaseContext(context);
+                    lock (pcscApiLock)
+                    {
+                        SCardReleaseContext(context);
+                    }
                 });
             }
 
@@ -270,7 +280,12 @@ namespace CaCom
 
             List<Reader> readers = new List<Reader>();
 
-            ErrorCode ret = (ErrorCode)SCardListReaders(context, null, null, ref pcchReaders);
+            ErrorCode ret;
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardListReaders(context, null, null, ref pcchReaders);
+            }
+
             if (ret != ErrorCode.NoError)
             {
                 throw new NFCException("Can not get readcers info:" + ret);
@@ -278,7 +293,11 @@ namespace CaCom
 
             byte[] mszReaders = new byte[pcchReaders * 2];
 
-            ret = (ErrorCode)SCardListReaders(context, null, mszReaders, ref pcchReaders);
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardListReaders(context, null, mszReaders, ref pcchReaders);
+            }
+
             if (ret != ErrorCode.NoError)
             {
                 throw new NFCException("Can not get readcers info:" + ret);
@@ -308,16 +327,18 @@ namespace CaCom
         void InitReaderState(List<Reader> readers)
         {
             readerStates = new SCARD_READERSTATE[readers.Count];
-            int i = 0;
-            foreach (var reader in readers)
-            {
+
+            for (int i = 0 ; i < readers.Count; i++) {
                 readerStates[i].dwCurrentState = (uint)CardState.Unaware;
-                readerStates[i].szReader = reader.Name;
-                i++;
+                readerStates[i].szReader = readers[i].Name;
             }
 
+            ErrorCode ret;
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardGetStatusChange(context, 100, readerStates, readerStates.Length);
+            }
 
-            ErrorCode ret = (ErrorCode)SCardGetStatusChange(context, 100, readerStates, readerStates.Length);
             if (ret != ErrorCode.NoError)
             {
                 throw new NFCException("Can not initialize card state;" + ret);
@@ -332,7 +353,10 @@ namespace CaCom
             {
                 IntPtr hCard = ConnectCard(readers[ri], ShareParam.Direct, Protocol.Undefined);
 
-                ret = (ErrorCode)SCardGetAttrib(hCard, (uint)Attribute.VendorIfdSerialNo, pbAttr, ref pcbAttrLen);
+                lock (pcscApiLock)
+                {
+                    ret = (ErrorCode)SCardGetAttrib(hCard, (uint)Attribute.VendorIfdSerialNo, pbAttr, ref pcbAttrLen);
+                }
 
                 if (ret != ErrorCode.NoError)
                 {
@@ -348,7 +372,12 @@ namespace CaCom
 
         void Poll(int timeoutMilliSec)
         {
-            ErrorCode ret = (ErrorCode)SCardGetStatusChange(context, timeoutMilliSec, readerStates, readerStates.Length);
+            ErrorCode ret;
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardGetStatusChange(context, timeoutMilliSec, readerStates, readerStates.Length);
+            }
+
             switch (ret)
             {
                 case ErrorCode.NoError:
@@ -377,28 +406,31 @@ namespace CaCom
 
                             if (readers[ri].State != CardState.Present)
                             {
-                                IntPtr hCard = ConnectCard(readers[ri], readers[ri].ShareParam, readers[ri].Protocol);
-
-                                readers[ri].CurrentCard = GetCardInfo(hCard, readers[ri]);
-
-
-                                Disposition disposition = Disposition.Leave;
-
-                                if (Global.SyncContext != null)
+                                IntPtr hCard;
+                                lock (readers[ri].ApduLock)
                                 {
-                                    Global.SyncContext.Post((state) => {
-                                        Reader r = (Reader)state;
-                                        if (OnEnterCard != null) OnEnterCard(r.CurrentCard, r);
-                                    }, readers[ri]);
-                                }
-                                else
-                                {
-                                    if (OnEnterCard != null) OnEnterCard(readers[ri].CurrentCard, readers[ri]);
-                                }
+                                    hCard = ConnectCard(readers[ri], readers[ri].ShareParam, readers[ri].Protocol);
+                                    readers[ri].CurrentCard = GetCardInfo(hCard, readers[ri]);
 
-                                DisconnectCard(hCard, disposition);
+                                    Disposition disposition = Disposition.Leave;
 
-                                readers[ri].State = CardState.Present;
+                                    if (Global.SyncContext != null)
+                                    {
+                                        Global.SyncContext.Post((state) => {
+                                            Reader r = (Reader)state;
+                                            if (OnEnterCard != null) OnEnterCard(r.CurrentCard, r);
+                                        }, readers[ri]);
+                                    }
+                                    else
+                                    {
+                                        if (OnEnterCard != null) OnEnterCard(readers[ri].CurrentCard, readers[ri]);
+                                    }
+
+                                    DisconnectCard(hCard, disposition);
+
+                                    readers[ri].State = CardState.Present;
+
+                                }
                             }
 
 
@@ -465,6 +497,8 @@ namespace CaCom
 
             card.Id = cardId;
 
+            Console.WriteLine("new CardId:" + cardId);
+
             //Get Card Type
             maxRecvDataLen = 64;
 
@@ -493,7 +527,13 @@ namespace CaCom
             IntPtr hCard = IntPtr.Zero;
 
             IntPtr activeProtocol = IntPtr.Zero;
-            ErrorCode ret = (ErrorCode)SCardConnect(context, reader.Name, (uint)shared, (uint)protocol, ref hCard, ref activeProtocol);
+
+            ErrorCode ret;
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardConnect(context, reader.Name, (uint)shared, (uint)protocol, ref hCard, ref activeProtocol);
+            }
+
             if (ret != ErrorCode.NoError)
             {
                 throw new NFCException("Can not connect card:" + ret);
@@ -504,7 +544,12 @@ namespace CaCom
 
         internal void DisconnectCard(IntPtr hCard, Disposition reaction)
         {
-            ErrorCode ret = (ErrorCode)SCardDisconnect(hCard, (int)reaction);
+            ErrorCode ret;
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardDisconnect(hCard, (int)reaction);
+            }
+
             if (ret != ErrorCode.NoError)
             {
                 throw new NFCException("Can not disconnect card:" + ret);
@@ -524,7 +569,11 @@ namespace CaCom
             if (protocol == Protocol.T1) process = pciProcessT1;
             else if (protocol == Protocol.Raw) process = pciProcessRaw;
 
-            ErrorCode ret = (ErrorCode)SCardTransmit(hCard, process, sendBuffer, cbSendLength, ioRecv, recvBuffer, ref pcbRecvLength);
+            ErrorCode ret;
+            lock (pcscApiLock)
+            {
+                ret = (ErrorCode)SCardTransmit(hCard, process, sendBuffer, cbSendLength, ioRecv, recvBuffer, ref pcbRecvLength);
+            }
             if (ret != ErrorCode.NoError)
             {
                 throw new NFCException("Can not transmit to card:" + ret);
@@ -551,12 +600,12 @@ namespace CaCom
                         Global.SyncContext.Post((state) =>
                         {
                             ValueTuple<Reader, ApduCommand, byte[]> t = (ValueTuple<Reader, ApduCommand, byte[]>)state;
-                            if (handler != null) handler(false, t.Item1, t.Item2, t.Item3);
+                            if (handler != null) handler(ExecStatus.Error, t.Item1, t.Item2, t.Item3);
                         }, new ValueTuple<Reader, ApduCommand, byte[]>(reader, command, null));
                     }
                     else
                     {
-                        if (OnAPDUCommand != null) handler(false, reader, command, null);
+                        if (OnAPDUCommand != null) handler(ExecStatus.Error, reader, command, null);
                     }
                 }
                 else
@@ -570,56 +619,76 @@ namespace CaCom
 
                         byte[] recvBuffer;
 
-                        IntPtr hCard = ConnectCard(reader, reader.ShareParam, reader.Protocol);
+                        IntPtr hCard;
+                        int recvLength;
+                        byte[] data;
 
-                        recvBuffer = new byte[maxRecvDataLen + 2];
-
-                        int recvLength = TransmitToCard(hCard, command.Data, recvBuffer, reader.Protocol);
-
-                        sw1 = recvBuffer[recvLength - 2];
-                        sw2 = recvBuffer[recvLength - 1];
-
-                        command.Sw1 = sw1;
-                        command.Sw2 = sw2;
-
-                        if (sw1 != 0x90 || sw2 != 0x00)
+                        lock (reader.ApduLock)
                         {
-                            throw new APDUException(sw1, sw2);
+                            hCard = ConnectCard(reader, reader.ShareParam, reader.Protocol);
+                            recvBuffer = new byte[maxRecvDataLen + 2];
+                            recvLength = TransmitToCard(hCard, command.Data, recvBuffer, reader.Protocol);
+                        
+                            sw1 = recvBuffer[recvLength - 2];
+                            sw2 = recvBuffer[recvLength - 1];
+
+                            command.Sw1 = sw1;
+                            command.Sw2 = sw2;
+
+                            if (sw1 != 0x90 && sw1 != 0x62 && sw1 != 0x63)
+                            {
+                                throw new APDUException(sw1, sw2);
+                            }
+
+                            Console.WriteLine("sw1:" + sw1 + ",sw2:" + sw2 + ",length:" + recvLength);
+
+
+                            data = new byte[recvLength - 2];
+                            Array.Copy(recvBuffer, data, recvLength - 2);
+
+                            DisconnectCard(hCard, Disposition.Leave);
+
                         }
-
-                        byte[] data = new byte[recvLength - 2];
-                        Array.Copy(recvBuffer, data, recvLength - 2);
-
-                        DisconnectCard(hCard, Disposition.Leave);
 
                         if (Global.SyncContext != null)
                         {
                             Global.SyncContext.Post((state) =>
                             {
                                 ValueTuple<Reader, ApduCommand, byte[]> t = (ValueTuple<Reader, ApduCommand, byte[]>)state;
-                                if (handler != null) handler(true, t.Item1, t.Item2, t.Item3);
+                                if (handler != null)
+                                {
+                                    if (command.Sw1 == 0x90) handler(ExecStatus.Success, t.Item1, t.Item2, t.Item3);
+                                    else handler(ExecStatus.Warning, t.Item1, t.Item2, t.Item3);
+                                }
                             }, new ValueTuple<Reader, ApduCommand, byte[]>(reader, command, data));
                         }
                         else
                         {
-                            if (handler != null) handler(true, reader, command, data);
+                            if (handler != null)
+                            {
+                                if(command.Sw1 == 0x90) handler(ExecStatus.Success, reader, command, data);
+                                else handler(ExecStatus.Warning, reader, command, data);
+                            }
                         }
+
                     }
                     catch(Exception e)
                     {
                         command.Exception = e;
 
+                        Console.WriteLine("Can not send Apdu command:" + e.Message);
+
                         if (Global.SyncContext != null)
                         {
                             Global.SyncContext.Post((state) =>
                             {
                                 ValueTuple<Reader, ApduCommand, byte[]> t = (ValueTuple<Reader, ApduCommand, byte[]>)state;
-                                if (handler != null) handler(false, t.Item1, t.Item2, t.Item3);
+                                if (handler != null) handler(ExecStatus.Error, t.Item1, t.Item2, t.Item3);
                             }, new ValueTuple<Reader, ApduCommand, byte[]>(reader, command, null));
                         }
                         else
                         {
-                            if (handler != null) handler(false, reader, command, null);
+                            if (handler != null) handler(ExecStatus.Error, reader, command, null);
                         }
                     }
                 }
@@ -629,7 +698,15 @@ namespace CaCom
 
         public async Task SendAPDUCommand(Reader reader, ApduCommand command)
         {
-            await SendAPDUCommand(reader, command, OnAPDUCommand);
+            try
+            {
+                await SendAPDUCommand(reader, command, OnAPDUCommand);
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine("Can not send Apdu command:" + e.Message);
+            }
+            
         }
 
         public async Task WriteNdefMessage(Reader reader, NdefMessage message, byte userMemoryPage = 4, byte writeUnitSize = 4)
@@ -659,14 +736,14 @@ namespace CaCom
 
                 command = new ApduCommand(com);
 
-                bool success = false;
+                ExecStatus success = ExecStatus.Error;
 
                 await SendAPDUCommand(reader, command, (s, r, c, rec) =>
                 {
                     success = s;
                 });
 
-                if (!success)
+                if (success == ExecStatus.Error)
                 {
                     if (Global.SyncContext != null)
                     {
@@ -710,18 +787,19 @@ namespace CaCom
             ApduCommand command = new ApduCommand(com);
 
             List<byte[]> receivedByte = new List<byte[]>();
-            bool success = false;
+            ExecStatus success = ExecStatus.Error;
             byte length = 0;
             int index = 0;
 
             await SendAPDUCommand(reader, command, (s, r, c, rec) =>
             {
-                if (s) receivedByte.Add(rec);
+                if (s == ExecStatus.Success) receivedByte.Add(rec);
                 success = s;
             });
 
-            if (!success || receivedByte[index][0] != 0x03)
+            if (success != ExecStatus.Success || receivedByte[index][0] != 0x03)
             {
+
                 if (Global.SyncContext != null)
                 {
                     Global.SyncContext.Post((state) =>
@@ -747,16 +825,18 @@ namespace CaCom
                 com[3] += 0x04;
                 command = new ApduCommand(com);
 
-                success = false;
+                success = ExecStatus.Error;
 
                 await SendAPDUCommand(reader, command, (s, r, c, rec) =>
                 {
-                    if (s) receivedByte.Add(rec);
+                    if (s == ExecStatus.Success) receivedByte.Add(rec);
                     success = s;
                     numRead++;
                 });
 
-                if (!success)
+                Console.WriteLine("ReadNdefMessage e");
+
+                if (success == ExecStatus.Success)
                 {
                     if (Global.SyncContext != null)
                     {

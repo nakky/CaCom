@@ -18,6 +18,8 @@ namespace CaCom
 
         public string SerialNumber { get; internal set; }
 
+        public object ApduLock { get; internal set; }
+
         public Reader(string name)
         {
             Name = name;
@@ -29,6 +31,8 @@ namespace CaCom
             ShareParam = ShareParam.Shared;
             Protocol = Protocol.T1;
             State = CardState.Unaware;
+
+            ApduLock = new object();
         }
     }
 }

@@ -102,7 +102,7 @@ namespace NFCReaderWriter
 
             controller.OnAPDUCommand += (success, reader, command, data) =>
             {
-                if (success)
+                if (success != ExecStatus.Error)
                 {
                     AddLog("Success APDU Command:");
                     string datastring = BitConverter.ToString(data);
