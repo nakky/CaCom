@@ -388,8 +388,6 @@ namespace CaCom
                     throw new NFCException("Can not get card state");
             }
 
-            //Console.WriteLine("Poll " + DateTime.Now + ":");
-
             for (int ri = 0; ri < readerStates.Length; ri++)
             {
                 uint eventState = readerStates[ri].dwEventState;
@@ -402,8 +400,6 @@ namespace CaCom
 
                         if ((eventState & (uint)CardState.Present) != 0)
                         {
-                            //Console.WriteLine("Present " + DateTime.Now + ":" + readers[ri].State);
-
                             if (readers[ri].State != CardState.Present)
                             {
                                 IntPtr hCard;
@@ -496,8 +492,6 @@ namespace CaCom
             string cardId = BitConverter.ToString(recvBuffer, 0, recvLength - 2).Replace("-", "");
 
             card.Id = cardId;
-
-            Console.WriteLine("new CardId:" + cardId);
 
             //Get Card Type
             maxRecvDataLen = 64;
@@ -639,9 +633,6 @@ namespace CaCom
                             {
                                 throw new APDUException(sw1, sw2);
                             }
-
-                            Console.WriteLine("sw1:" + sw1 + ",sw2:" + sw2 + ",length:" + recvLength);
-
 
                             data = new byte[recvLength - 2];
                             Array.Copy(recvBuffer, data, recvLength - 2);
@@ -833,8 +824,6 @@ namespace CaCom
                     success = s;
                     numRead++;
                 });
-
-                Console.WriteLine("ReadNdefMessage e");
 
                 if (success == ExecStatus.Success)
                 {
