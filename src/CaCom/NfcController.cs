@@ -825,7 +825,7 @@ namespace CaCom
                     numRead++;
                 });
 
-                if (success == ExecStatus.Success)
+                if (success != ExecStatus.Success)
                 {
                     if (Global.SyncContext != null)
                     {
